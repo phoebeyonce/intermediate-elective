@@ -4,10 +4,9 @@ author: "Phoebe Kaye Dupa"
 format: pdf
 ---
 
-# Set up
+# Set Up
 
 ## Packages
-
 ```{r}
 #| label: packages
 
@@ -23,15 +22,15 @@ library(scales)
 # reading in .xlsx files
 library(readxl)
 
-# visualizing missing data
-library(naniar)
-
 # arranging plots
 library(patchwork)
+
+# text stuff
+library(ggtext)
 ```
 
-## Data
 
+## Data
 ```{r}
 #| label: data
 
@@ -46,17 +45,13 @@ aq_ins <- read_xlsx(here("data", "Aquatic Sampling Data-2026-03-10.xlsx"),
 sites <- read_xlsx(here("data", "Aquatic Sampling Data-2026-03-10.xlsx"),
                    sheet = "sites")
 
-# water quality information
+# water quality
 water_quality <- read_xlsx(here("data", "Aquatic Sampling Data-2026-03-10.xlsx"),
                            sheet = "Water Quality",
-                           na = c("", "n/a", "N/A", "over", "173+")) 
-```
-# 1. Explain your inspiration
+                           na = c("", "n/a", "N/A", "over", "173+"))
+``` 
 
-
-# 3. Coding figure
-
-## Cleaning and Wrangling
+## Cleaning
 ```{r}
 #| label: ncos-site-object
 
@@ -65,51 +60,50 @@ ncos_sites <- sites %>%
   # filter to only include NCOS sites sampled four times a year
   filter(sector == "NCOS" & sampling_frequency == "Quarterly")
 ```
-
+ 
 ```{r}
 #| label: cleaning-taxon-list
 
-# creating new clean object from taxon_list
+# creating new object from taxon_list
 taxon_list_clean <- taxon_list %>%  
-  # converting taxon name to snake case (no spaces or capital letters,
-  # only underscores)
+  # clean taxon names
   mutate(verbatim_name = to_any_case(verbatim_name, case = "snake"))
 ```
-
+ 
 ```{r}
 #| label: water-quality-cleaning
 
 # creating new clean object from water quality
 water_quality_clean <- water_quality %>%  
   # clean column names
-  clean_names() %>% 
+  clean_names() %>%  
   # filtering join: only include sites in ncos_sites
-  semi_join(ncos_sites, by = "site") %>% 
+  semi_join(ncos_sites, by = "site") %>%  
   # create new column to join with later data frames
   unite("date_site", date, site, remove = TRUE) %>%  
   # group by date_site column
-  group_by(date_site) %>% 
+  group_by(date_site) %>%  
   # calculate median pH, salinity, DO
   summarize(med_ph = median(p_h, na.rm = TRUE),
             med_sal = median(salinity_ppt, na.rm = TRUE),
             med_do = median(dissolved_oxygen_mg_l, na.rm = TRUE)) %>%  
   # ungroup data frame
-  ungroup() %>% 
+  ungroup() %>%  
   # filter out salinity outliers
   filter(date_site != "2022-08-12_NVBR") 
 ```
-
+ 
 ```{r}
 #| label: cleaning-aq-ins
 
-# creating new clean object from aquatic inverts
+# creating new object from aquatic inverts
 aq_ins_clean <- aq_ins %>%  
   # clean column names
-  clean_names() %>% 
-  # filtering join: only include sites occurring in ncos_sites
+  clean_names() %>%  
+  # filtering join to only include sites occurring in ncos_sites
   semi_join(ncos_sites, by = c("site")) %>%  
   # renaming columns
-  rename(date = date_on_vial) %>% 
+  rename(date = date_on_vial) %>%  
   # select columns of interest
   select(date, sample_type, site,
          ostracod,
@@ -121,25 +115,25 @@ aq_ins_clean <- aq_ins %>%
          annelida_oligochaete,
          diptera_chironomid,
          annelida_polychaete) %>%  
-  # filter to only include "filtered beaker" samples
+  # filter to only include filter beaker samples
   filter(sample_type %in% c("FB 250", "FB250")) %>%  
-  # convert the data frame to long format
+  # convert to long format
   pivot_longer(cols = ostracod:annelida_polychaete,
                names_to = "taxon",
                values_to = "abundance") %>%  
   # group by date, site, taxon
-  group_by(date, site, taxon) %>% 
-  # calculate average abundance per liter (sum abundance divided by 7.5 liters)
+  group_by(date, site, taxon) %>%  
+  # calculate average abundance per liter
   summarize(ave_lit = sum(abundance, na.rm = TRUE)/7.5) %>%  
-  # ungroup data frame
-  ungroup() |> 
+  # ungroup after
+  ungroup() %>%  
   # create a new column called `date_site` to join with water quality
   unite("date_site", date, site, remove = FALSE) %>%  
   # join with water quality
   left_join(water_quality_clean, by = c("date_site")) %>%  
   # join with taxon list
   left_join(taxon_list_clean, by = c("taxon" = "verbatim_name")) %>%  
-  # add full names of sites
+  # full name of sites
   mutate(site_full = case_when(
     site == "NVBR" ~ "North of Venoco Bridge",
     site == "NEC" ~ "South of Venoco Bridge",
@@ -148,16 +142,200 @@ aq_ins_clean <- aq_ins %>%
     site == "NPB1" ~ "North of Phelps Bridge",
     site == "NPB2" ~ "Phelps Road",
     site == "NWP" ~  "West Pond",
-    site == "NDC" ~ "Devereux Creek")) %>%  
-  # setting factor levels for site
+    site == "NDC" ~ "Devereux Creek"
+  )) %>%  
+  # factor levels for site
   mutate(site_full = fct_reorder(site_full, med_sal, .fun = "median", .na_rm = TRUE),
          site_full = fct_rev(site_full))
 ```
+ 
+ 
+# Problems
 
-## Visualizing Figure
+## 1. Explain your inspiration
+I chose Steven Ponce's visual of China's electricity generation mix. I thought using this as inspiration made sense since I could do something similar and visualizing a mix of species (or something similar) in the NCOS space. I would probably keep `year` as my x-axis since I am showing my y-variable over time. I would have my `taxon` on the y-axis, and each different one would be represented by a different color. 
+
+## 2. Plan your figure
+![Potential Figure](images/figure-13.jpg).
+
+## 3. Code your figure
+
+### Time series
 ```{r}
+#| label: taxa-year
 
+
+taxa_year <- aq_ins_clean %>% 
+  mutate(year = year(date)) %>% 
+  group_by(year, taxon) %>% 
+  summarize(total_ave_lit = sum(ave_lit, na.rm = TRUE), .groups = "drop") %>% 
+  # including these taxon
+  filter(taxon %in% c(
+    "ostracod",
+    "copepod",
+    "hemiptera_corixidae_boatman",
+    "cladocera",
+    "nematode",
+    "diptera_ceratopogonidae",
+    "diptera_chironomid",
+    "annelida_oligochaete"
+  )) |>
+  mutate(
+    taxon_label = case_when(
+      taxon == "ostracod"                    ~ "Ostracod",
+      taxon == "copepod"                     ~ "Copepod",
+      taxon == "hemiptera_corixidae_boatman" ~ "Corixidae",
+      taxon == "cladocera"                   ~ "Cladocera",
+      taxon == "nematode"                    ~ "Nematode",
+      taxon == "diptera_ceratopogonidae"     ~ "Ceratopogonidae",
+      taxon == "diptera_chironomid"          ~ "Chironomid",
+      taxon == "annelida_oligochaete"        ~ "Oligochaete"
+    ),
+    # log + 1 transform to match the copepod abundance transform used in the rest of the analysis
+    log_total = log(total_ave_lit + 1)
+  )
+```
+ 
+### Color & linetype palettes
+```{r}
+#} label: visuals
+
+# corresponding colors
+pal <- c(
+  "Copepod"         = "#4fc3f7",
+  "Ostracod"        = "#81c784",
+  "Cladocera"       = "#ffb74d",
+  "Corixidae"       = "#ce93d8",
+  "Chironomid"      = "#f48fb1",
+  "Ceratopogonidae" = "#80cbc4",
+  "Nematode"        = "#bcaaa4",
+  "Oligochaete"     = "#a5d6a7"
+)
+
+
+#corresponding lines 
+lty_pal <- c(
+  "Copepod"         = "solid",
+  "Ostracod"        = "dashed",
+  "Cladocera"       = "dotted",
+  "Corixidae"       = "longdash",
+  "Chironomid"      = "twodash",
+  "Ceratopogonidae" = "dashed",
+  "Nematode"        = "dotted",
+  "Oligochaete"     = "longdash")
 ```
 
-# 4. Describe process
+### Labels
+```{r}
+#| label: right-side-labels
 
+end_labels <- taxa_year %>% 
+  group_by(taxon_label) %>% 
+  slice_max(year, n = 1) %>% 
+  ungroup()
+```
+
+### Theme colors
+```{r}
+#| label: theme-colors
+
+navy_bg  <- "#0a1628"
+panel_bg <- "#0d1f38"
+grid_col <- "#1e3a52"
+text_col <- "#e8e4d8"
+sub_col  <- "#8aabbf"
+axis_col <- "#6a9ab5"
+```
+
+### Making Visual
+```{r}
+#| label: making-visual
+
+p <- taxa_year %>% 
+  ggplot(aes(x = year, 
+             y = log_total, 
+             color = taxon_label, 
+             group = taxon_label)) +
+  # Lines + points
+  geom_line(linewidth = 0.9, na.rm = TRUE) +
+  geom_point(size = 2.5, na.rm = TRUE) +
+ 
+  # Right-side taxon labels (replaces legend)
+  geom_text(
+    data     = end_labels,
+    aes(label = taxon_label),
+    hjust    = -0.12,
+    size     = 3,
+    na.rm    = TRUE
+  ) +
+ 
+  # X-axis: one tick per year, extra right margin for labels
+  scale_x_continuous(
+    breaks = 2020:2024,
+    expand = expansion(mult = c(0.03, 0.22))
+  ) +
+ 
+  # Y-axis: log + 1 scale
+  scale_y_continuous(
+    name   = "log(avg. individuals / L  +  1)",
+    breaks = 0:7,
+    expand = expansion(mult = c(0.05, 0.1))
+  ) +
+ 
+  # Palettes (no legend — labels carry that information)
+  scale_color_manual(values = pal,      guide = "none") +
+  scale_linetype_manual(values = lty_pal, guide = "none") +
+ 
+  # Titles
+  labs(
+    title   = "Copepods and ostracods dominate NCOS invertebrate communities",
+    subtitle = paste0(
+      "Sum of average individuals per liter (FB 250 samples, NCOS quarterly sites)  \u00b7  ",
+      "log(x\u00a0+\u00a01) transformed  \u00b7  2020\u20132024"
+    ),
+    caption = paste0(
+      "SOURCE: Aquatic Sampling Data 2020\u20132025  \u00b7  ",
+      "Sites: NDC, NEC, NMC, NPB, NPB1, NPB2, NVBR  \u00b7  ",
+      "Sample type: filtered beaker 250\u00a0mL"
+    ),
+    x = NULL
+  ) +
+ 
+  # making theme
+  theme_minimal(base_size = 11) +
+  theme(
+    plot.background  = element_rect(fill = navy_bg,  color = NA),
+    panel.background = element_rect(fill = panel_bg, color = NA),
+    panel.grid.major = element_line(color = grid_col, linewidth = 0.35),
+    panel.grid.minor = element_blank(),
+    axis.text        = element_text(color = axis_col, size = 9),
+    axis.title.y     = element_text(color = axis_col, size = 9,
+                                    margin = margin(r = 8)),
+    axis.ticks       = element_line(color = grid_col),
+    plot.title       = element_text(color = text_col, size = 15,
+                                    face = "bold", margin = margin(b = 4)),
+    plot.subtitle    = element_text(color = sub_col, size = 9.5,
+                                    margin = margin(b = 14)),
+    plot.caption     = element_text(color = "#4a6a80", size = 7.5,
+                                    hjust = 0, margin = margin(t = 10)),
+    plot.margin      = margin(20, 24, 14, 20)
+  )
+```
+
+### Save
+```{r}
+#| label: save-picture
+
+ggsave(
+  filename = "aquatic_taxa_timeseries.png",
+  plot     = p,
+  width    = 10,
+  height   = 6,
+  dpi      = 300,
+  bg       = navy_bg)
+
+message("Saved \u2192 aquatic_taxa_timeseries.png")
+```
+
+## 4. Describe your process
+I forked his repository in order to use the same code to build this figure. I didn't realize that he used custom code to build his figure and it was a little difficult trying to figure out how to get it to run on my end. I would say this visual is a lot less boring to look at than figures that were made previously. I think the colors and the cleaner look make the visuals more appealing to look at. 
