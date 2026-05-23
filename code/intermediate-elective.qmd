@@ -12,7 +12,6 @@ format:
         \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,breakanywhere,commandchars=\\\{\}}
 editor: source
 execute: 
-  echo: false
   message: false
   warning: false
 ---
@@ -169,7 +168,15 @@ aq_ins_clean <- aq_ins %>%
 I chose Steven Ponce's visual of China's electricity generation mix. I thought using this as inspiration made sense since I could do something similar and visualizing a mix of species (or something similar) in the NCOS space. I would probably keep `year` as my x-axis since I am showing my y-variable over time. I would have my `taxon` on the y-axis, and each different one would be represented by a different color. 
 
 ## 2. Plan your figure
-![Potential Figure](images/figure-13.jpg).
+```{r}
+#| echo: false
+#| message: true
+#| warning: false
+
+knitr::include_graphics(here::here("images/figure-13.jpg"))
+
+```
+
 
 ## 3. Code your figure
 
@@ -351,4 +358,4 @@ message("Saved \u2192 aquatic_taxa_timeseries.png")
 ```
 
 ## 4. Describe your process
-I forked his repository in order to use the same code to build this figure. I didn't realize that he used custom code to build his figure and it was a little difficult trying to figure out how to get it to run on my end. I would say this visual is a lot less boring to look at than figures that were made previously. I think the colors and the cleaner look make the visuals more appealing to look at. 
+I forked his repository in order to use the same code to build this figure. I basically just copied and pasted everything, but I didn't realize that he used custom code to build his figure and it was a little difficult trying to figure out how to get it to run on my end. I thought it was also cool that you could do that. I would say this visual is a lot less boring to look at than figures that were made previously. I think the colors and the cleaner look make the visuals more appealing to look at. 

@@ -36,6 +36,11 @@ library(ggtext)
 │   └── utils  
 └── intermediate-elective.Rproj
 ```
+##Rendered Output
+The rendered pdf is [here](https://github.com/phoebeyonce/intermediate-elective/blob/main/code/intermediate-elective.pdf).
+
+The visual is [here](https://github.com/phoebeyonce/intermediate-elective/blob/main/images/aquatic_taxa_timeseries.png).
+
 ## Credit
 
 This elective uses custom code from [here](https://stevenponce.netlify.app/data_visualizations/30DayChartChallenge/2026/30dcc_2026_24.html).
