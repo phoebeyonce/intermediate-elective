@@ -1,7 +1,20 @@
 ---
 title: "Intermediate Elective 2"
 author: "Phoebe Kaye Dupa"
-format: pdf
+date: today
+format:
+  pdf: 
+    fig-width: 10
+    fig-height: 8
+    include-in-header:
+      text: |
+        \usepackage{fvextra}
+        \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,breakanywhere,commandchars=\\\{\}}
+editor: source
+execute: 
+  echo: false
+  message: false
+  warning: false
 ---
 
 # Set Up
